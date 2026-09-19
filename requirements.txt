@@ -1,0 +1,5 @@
+Flask
+requests
+faster-whisper
+moviepy
+gunicorn
