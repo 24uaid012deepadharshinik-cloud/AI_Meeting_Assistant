@@ -1,17 +1,23 @@
+import os
 import requests
 
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+HF_URL = "https://router.huggingface.co/v1/chat/completions"
 
-MODEL = "llama3.2:3b"
+MODEL = "openai/gpt-oss-120b:fastest"
 
 
 def generate_minutes(transcript):
 
-    prompt = f"""
-You are an AI Meeting Assistant.
+    hf_token = os.getenv("HF_TOKEN")
 
-Create concise professional Minutes of Meeting from the transcript below.
+    if not hf_token:
+        raise RuntimeError(
+            "HF_TOKEN is not configured."
+        )
+
+    prompt = f"""
+Create professional Minutes of Meeting from the transcript below.
 
 MEETING TRANSCRIPT:
 {transcript}
@@ -35,40 +41,47 @@ Rules:
 
     response = requests.post(
 
-        OLLAMA_URL,
+        HF_URL,
+
+        headers={
+            "Authorization": f"Bearer {hf_token}",
+            "Content-Type": "application/json"
+        },
 
         json={
 
             "model": MODEL,
 
-            "prompt": prompt,
+            "messages": [
 
-            "stream": False,
+                {
+                    "role": "system",
+                    "content":
+                        "You are a professional AI Meeting Assistant."
+                },
 
-            "keep_alive": "5m",
+                {
+                    "role": "user",
+                    "content": prompt
+                }
 
-            "options": {
+            ],
 
-                "temperature": 0.2,
+            "temperature": 0.2,
 
-                "num_predict": 500
+            "max_tokens": 500,
 
-            }
+            "stream": False
 
         },
 
         timeout=180
-
     )
 
 
     response.raise_for_status()
 
-
     data = response.json()
 
 
-    return data.get(
-        "response",
-        "Unable to generate meeting minutes."
-    )
+    return data["choices"][0]["message"]["content"].strip()
